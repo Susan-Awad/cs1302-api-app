@@ -12,6 +12,9 @@ import com.google.gson.GsonBuilder;
 import java.util.Optional;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.util.List;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
+import javafx.application.Platform;;
 
 /**
  * This class interatcs with the NewsAPI to search for news articles about the given
@@ -23,6 +26,7 @@ public class NewsSourceAPI {
      * Represents a response structure from the NewsApi.
      */
     public class NewsResponse {
+
         private int totalResults;
         private List<Article> articles;
 
@@ -94,6 +98,10 @@ public class NewsSourceAPI {
         .setPrettyPrinting()
         .create();
 
+    private static final int MAX_REQUESTS_PER_DAY = 100;
+    private static int newsApiRequests = 0;
+    private static boolean rateLimitReached = false;
+
     private static final String API_KEY = "c4bb93a1eeb54396992c90433ffa9dab";
     private static final String ENDPOINT = "https://newsapi.org/v2/everything";
 
@@ -107,30 +115,69 @@ public class NewsSourceAPI {
      */
     public static Optional<NewsSourceAPI.NewsResponse> searchNews(List<String> cuisines) {
         try {
-            String cuisineString = cuisines.get(0) + " cuisine";
-            String url = String.format("%s?apiKey=%s&q=%s&language=en&sortBy=relevancy",
-                ENDPOINT,
-                API_KEY,
-                URLEncoder.encode(cuisineString, StandardCharsets.UTF_8)
-                );
-            HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .build();
+            if (!checkNewsRateLimit()) {
+                String cuisineString = cuisines.get(0) + " cuisine";
+                String url = String.format("%s?apiKey=%s&q=%s&language=en&sortBy=relevancy",
+                    ENDPOINT,
+                    API_KEY,
+                    URLEncoder.encode(cuisineString, StandardCharsets.UTF_8));
 
-            HttpResponse<String> response = HTTP_CLIENT
-                .send(request, BodyHandlers.ofString());
+                HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .build();
 
-            final int statusCode = response.statusCode();
-            if (statusCode == 200) {
-                String responseBody = response.body();
-                NewsResponse result = GSON.fromJson(responseBody, NewsResponse.class);
-                return Optional.ofNullable(result);
+                HttpResponse<String> response = HTTP_CLIENT
+                    .send(request, BodyHandlers.ofString());
+
+                newsApiRequests++;
+
+                final int statusCode = response.statusCode();
+                if (statusCode == 200) {
+                    String responseBody = response.body();
+                    NewsResponse result = GSON.fromJson(responseBody, NewsResponse.class);
+                    return Optional.ofNullable(result);
+                } else {
+                    throw new IOException("Response status code not 200:" + statusCode);
+                } // if
             } else {
-                throw new IOException("response status code not 200:" + statusCode);
+                newsApiRequests = 0;
             } // if
         } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setHeaderText("Error");
+                alert.setTitle("Error");
+                alert.setContentText(e.getMessage());
+                alert.showAndWait();
+            });
         } // try
         return Optional.empty();
     } // fetchNews
+
+    private static boolean checkNewsRateLimit() {
+        if (newsApiRequests == MAX_REQUESTS_PER_DAY / 4) {
+            Platform.runLater(() -> sendWarning("25% of your news api requests have been used!"));
+        } else if (newsApiRequests == MAX_REQUESTS_PER_DAY / 2) {
+            Platform.runLater(() -> sendWarning("50% of your news api requests have been used!"));
+        } else if (newsApiRequests == MAX_REQUESTS_PER_DAY * 0.75) {
+            Platform.runLater(() -> sendWarning("75% of your news api requests have been used!"));
+        } else if (newsApiRequests >= MAX_REQUESTS_PER_DAY) {
+            Platform.runLater(() -> sendWarning("NewsApi rate limit has been reached. " +
+            "There will be a pause for a minute."));
+            return rateLimitReached = true;
+        }
+        return rateLimitReached = false;
+    } // checkNewsRateLimit
+
+    public static boolean getRateLimitReached() {
+        return rateLimitReached;
+    } // getRateLimitReached
+
+    private static void sendWarning(String content) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setHeaderText("Warning");
+        alert.setTitle("Warning");
+        alert.setContentText(content);
+        alert.showAndWait();
+    } // sendAlert
 } // NewsSourceAPI

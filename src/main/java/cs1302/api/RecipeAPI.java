@@ -14,6 +14,7 @@ import java.net.http.HttpResponse.BodyHandlers;
 import java.util.List;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
+import javafx.application.Platform;
 
 /**
  * Interacts with the Edamam Recipe API to search for recipes.
@@ -134,6 +135,10 @@ public class RecipeAPI {
         .setPrettyPrinting()
         .create();
 
+    private static final int MAX_REQUESTS_PER_MINUTE = 9;
+    private static int recipeApiRequests = 0;
+    private static boolean rateLimitReached = false;
+
     private static final String API_KEY = "aeeb9dcf6d121b1c6cbcaf6e2b72f2b2";
     private static final String SEARCH_ENDPOINT = "https://api.edamam.com/api/recipes/v2";
     private static int statusCode;
@@ -147,34 +152,63 @@ public class RecipeAPI {
      */
     public static Optional<RecipeAPI.RecipeResponse> searchRecipes(String dish) {
         try {
-            String url = String.format("%s?type=public&q=%s&app_id=aebf2db0&app_key=%s",
-                SEARCH_ENDPOINT, URLEncoder.encode(dish, StandardCharsets.UTF_8), API_KEY);
-            HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .build();
+            if (!checkRecipeRateLimit()) {
+                String url = String.format("%s?type=public&q=%s&app_id=aebf2db0&app_key=%s",
+                    SEARCH_ENDPOINT,
+                    URLEncoder.encode(dish, StandardCharsets.UTF_8),
+                    API_KEY);
 
-            HttpResponse<String> response = HTTP_CLIENT
-                .send(request, HttpResponse.BodyHandlers.ofString());
+                HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .build();
 
-            statusCode = response.statusCode();
-            if (statusCode == 200) {
-                String body = response.body();
-                RecipeResponse result = GSON.fromJson(body, RecipeResponse.class);
-                return Optional.ofNullable(result);
+                HttpResponse<String> response = HTTP_CLIENT
+                    .send(request, HttpResponse.BodyHandlers.ofString());
+
+                updateRecipeRateLimit();
+
+                statusCode = response.statusCode();
+                if (statusCode == 200) {
+                    String body = response.body();
+                    RecipeResponse result = GSON.fromJson(body, RecipeResponse.class);
+                    return Optional.ofNullable(result);
+                } else {
+                    throw new IOException("Response status code not 200:"
+                        + statusCode);
+                } // if
             } else {
-                throw new IOException("Response status code not 200:" + statusCode);
+                recipeApiRequests = 0;
             } // if
         } catch (IOException | InterruptedException e) {
-            if (statusCode == 429) {
-                Alert alert = new Alert(Alert.AlertType.ERROR);
-                alert.setHeaderText("Error");
-                alert.setTitle("Error");
-                alert.setContentText(statusCode + ": Too Many Requests! The rate limit" +
-                    " is 10 hits per minute.\nPlease try again in another minute.");
-                alert.showAndWait();
-            } // if
+            Platform.runLater(() -> showAlert(e.getMessage() + ": " + statusCode));
         } // try
 
         return Optional.empty();
     } // searchRecipes
+
+    private static boolean checkRecipeRateLimit() {
+        if (recipeApiRequests >= MAX_REQUESTS_PER_MINUTE) {
+            Platform.runLater(
+                () -> showAlert("Intentional delay due to Edamam's rate limits. "
+                    + "Please wait a minute."));
+            return rateLimitReached = true;
+        } // if
+        return rateLimitReached = false;
+    } // checkRecipeRateLimit
+
+    private static void updateRecipeRateLimit() {
+        recipeApiRequests++;
+    } // updateRecipeRateLimit
+
+    public static boolean getRateLimitReached() {
+        return rateLimitReached;
+    } // getRateLimitReached
+
+    public static void showAlert(String content) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setHeaderText("Error");
+        alert.setTitle("Error");
+        alert.setContentText(content);
+        alert.showAndWait();
+    } // showAlert
 } // RecipeAPI
