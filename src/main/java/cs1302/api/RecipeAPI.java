@@ -126,12 +126,12 @@ public class RecipeAPI {
         } // Hit
     } // RecipeResponse
 
-    public static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
         .version(HttpClient.Version.HTTP_2)
         .followRedirects(HttpClient.Redirect.NORMAL)
         .build();
 
-    public static Gson GSON = new GsonBuilder()
+    private static Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
         .create();
 
@@ -220,7 +220,7 @@ public class RecipeAPI {
      *
      * @param content The contents of the error message.
      */
-    public static void showAlert(String content) {
+    private static void showAlert(String content) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setHeaderText("Error");
         alert.setTitle("Error");

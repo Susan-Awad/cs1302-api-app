@@ -71,12 +71,12 @@ public class NewsSourceAPI {
         } // Article
     } // NewsResponse
 
-    public static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
         .version(HttpClient.Version.HTTP_2)
         .followRedirects(HttpClient.Redirect.NORMAL)
         .build();
 
-    public static Gson GSON = new GsonBuilder()
+    private static Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
         .create();
 
