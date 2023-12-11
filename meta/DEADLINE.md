@@ -54,7 +54,7 @@ https://https://newsapi.org/v2/everything?q=asian+cuisine&language=en&sortBy=rel
 ```
 
 > This URL request required an API key as well, with is added at the beginning of the
-    query string. The rate limit for this API is 100 requests per minute. There will
+    query string. The rate limit for this API is 100 requests per day. There will
     be a warning when the user uses 50% of the requests and if 100 requests is reached
     the app will have a 1 minute delay.
 
