@@ -165,7 +165,7 @@ public class RecipeAPI {
                 HttpResponse<String> response = HTTP_CLIENT
                     .send(request, HttpResponse.BodyHandlers.ofString());
 
-                updateRecipeRateLimit();
+                recipeApiRequests++;
 
                 statusCode = response.statusCode();
                 if (statusCode == 200) {
@@ -186,6 +186,15 @@ public class RecipeAPI {
         return Optional.empty();
     } // searchRecipes
 
+    /**
+     * Checks whether or not the number of api requests exceeds the max amount of requests
+     * per minute. If the max amount of hits has been reached, the alert will pop up
+     * to inform the user of an intentional delay. It will change the rateLimitReached
+     * value to true.
+     *
+     * @return Will return {@code true} if the max requests per minute has been reached and
+     * {@code false} if it hasn't.
+     */
     private static boolean checkRecipeRateLimit() {
         if (recipeApiRequests >= MAX_REQUESTS_PER_MINUTE) {
             Platform.runLater(
@@ -196,14 +205,21 @@ public class RecipeAPI {
         return rateLimitReached = false;
     } // checkRecipeRateLimit
 
-    private static void updateRecipeRateLimit() {
-        recipeApiRequests++;
-    } // updateRecipeRateLimit
-
+    /**
+     * Recieves the boolean value of the rateLimitReached variable.
+     *
+     * @return The boolean value of the {@code rateLimitReached} variable.
+     */
     public static boolean getRateLimitReached() {
         return rateLimitReached;
     } // getRateLimitReached
 
+    /**
+     * Creates and initializes an alert variable which will be shown on the screen
+     * with the provided contents.
+     *
+     * @param content The contents of the error message.
+     */
     public static void showAlert(String content) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setHeaderText("Error");

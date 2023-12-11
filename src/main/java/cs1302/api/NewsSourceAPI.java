@@ -1,20 +1,20 @@
 package cs1302.api;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URLEncoder;
+import java.net.http.HttpResponse.BodyHandlers;
+import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.Alert;
+import javafx.application.Platform;
+import java.nio.charset.StandardCharsets;
+import com.google.gson.GsonBuilder;
+import com.google.gson.Gson;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import java.util.Optional;
-import java.net.http.HttpResponse.BodyHandlers;
 import java.util.List;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Alert.AlertType;
-import javafx.application.Platform;;
+import java.net.URLEncoder;
+import java.net.URI;
+import java.io.IOException;
 
 /**
  * This class interatcs with the NewsAPI to search for news articles about the given
@@ -27,16 +27,7 @@ public class NewsSourceAPI {
      */
     public class NewsResponse {
 
-        private int totalResults;
         private List<Article> articles;
-
-        /**
-         * Gets the total number of results.
-         * @return The total number of articles.
-         */
-        public int getTotalResults() {
-            return totalResults;
-        } // getTotalResults
 
         /**
          * Gets a list of the articles.
@@ -51,7 +42,6 @@ public class NewsSourceAPI {
          */
         public static class Article {
             private String title;
-            private String description;
             private String url;
             private String content;
 
@@ -62,14 +52,6 @@ public class NewsSourceAPI {
             public String getTitle() {
                 return title;
             } // getTitle
-
-            /**
-             * Gets the description of the article.
-             * @return The description of the given article.
-             */
-            public String getDescription() {
-                return description;
-            } // getDescription
 
             /**
              * Gets the url link of the article.
@@ -154,25 +136,40 @@ public class NewsSourceAPI {
         return Optional.empty();
     } // fetchNews
 
+    /**
+     * Checks whether or not the number of api requests exceeds the max amount of requests
+     * per day. If it reaches 50% or 100%, it will send a warning to the screen and change the
+     * rateLimitReached variable to true.
+     *
+     * @return Will return {@code true} if the max requests per day has been reached and
+     * {@code false} if it hasn't.
+     */
     private static boolean checkNewsRateLimit() {
-        if (newsApiRequests == MAX_REQUESTS_PER_DAY / 4) {
-            Platform.runLater(() -> sendWarning("25% of your news api requests have been used!"));
-        } else if (newsApiRequests == MAX_REQUESTS_PER_DAY / 2) {
+        if (newsApiRequests == MAX_REQUESTS_PER_DAY / 2) {
             Platform.runLater(() -> sendWarning("50% of your news api requests have been used!"));
-        } else if (newsApiRequests == MAX_REQUESTS_PER_DAY * 0.75) {
-            Platform.runLater(() -> sendWarning("75% of your news api requests have been used!"));
         } else if (newsApiRequests >= MAX_REQUESTS_PER_DAY) {
             Platform.runLater(() -> sendWarning("NewsApi rate limit has been reached. " +
-            "There will be a pause for a minute."));
+                "There will be a pause for a minute."));
             return rateLimitReached = true;
         }
         return rateLimitReached = false;
     } // checkNewsRateLimit
 
+    /**
+     * Recieves the boolean value of the rateLimitReached variable.
+     *
+     * @return The boolean value of the {@code rateLimitReached} variable.
+     */
     public static boolean getRateLimitReached() {
         return rateLimitReached;
     } // getRateLimitReached
 
+    /**
+     * Creates and initializes an alert variable which will be shown on the screen
+     * with the provided contents.
+     *
+     * @param content The contents of the warning.
+     */
     private static void sendWarning(String content) {
         Alert alert = new Alert(Alert.AlertType.WARNING);
         alert.setHeaderText("Warning");

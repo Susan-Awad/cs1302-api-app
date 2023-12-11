@@ -9,14 +9,10 @@ import javafx.scene.layout.Priority;
 import javafx.scene.control.Label;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Alert.AlertType;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.geometry.Pos;
 import javafx.geometry.Insets;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -24,10 +20,11 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.Optional;
 import java.util.List;
-import java.io.IOException;
 
 /**
- * Represents
+ * Represents a JavaFX applicaion that takes the a user input to gather recipes about that dish.
+ * The cuisine type from the recipe API will be used in a second news API to collect news articles
+ * about the dish and presents the information on the screen.
  */
 public class ApiApp extends Application {
     private NewsSourceAPI newsSourceApi = new NewsSourceAPI();
@@ -36,7 +33,9 @@ public class ApiApp extends Application {
     private Optional<RecipeAPI.RecipeResponse> recipeResponse;
     private Optional<NewsSourceAPI.NewsResponse> newsResponse;
     private List<RecipeAPI.RecipeResponse.Hit> hits;
-    private int currentIndex = 0;
+
+    private int currentIndex;
+    private String term;
 
     private Stage stage;
     private Scene scene;
@@ -54,29 +53,37 @@ public class ApiApp extends Application {
     private Button search;
     private Button back;
     private Button next;
-    private String term;
 
    /**
      * Constructs an {@code ApiApp} object. This default (i.e., no argument)
      * constructor is executed in Step 2 of the JavaFX Application Life-Cycle.
      */
     public ApiApp() {
+        this.currentIndex = 0;
+
         this.root = new VBox();
         this.top = new VBox(475);
         this.searchs = new HBox(5);
-        this.bottom = new VBox(3);
         this.buttonBox = new HBox(5);
+        this.bottom = new VBox(3);
         this.stack = new StackPane();
-        this.searchBar = new TextField("search a dish (e.g. hummus, soup, etc)");
-        this.search = new Button("Search");
-        this.back = new Button("Back");
-        this.next = new Button("Next");
+
+        this.searchBar = new TextField("search a dish (e.g. hummus, dumpling, etc)");
         this.label = new Label("Search in a dish to get recipes and a related article.");
         this.apiLabel = new Label("Recipes provided by Edamam Recipe Search API "
             + " / News provided by NewsAPI");
+        this.search = new Button("Search");
+        this.back = new Button("Back");
+        this.next = new Button("Next");
     } // ApiApp
 
-    /** {@inheritDoc} */
+    /**
+     * Initializes the screen graph and sets up the nodes. It loads the background image,
+     * adds the various buttons, and the textfield. It assigns action events to the buttons
+     * and ensures the next and back button start off disabled.
+     *
+     * {@inheritDoc}
+     */
     @Override
     public void init() {
         System.out.println("init");
@@ -97,6 +104,7 @@ public class ApiApp extends Application {
         searchs.getChildren().addAll(searchBar, search);
         bottom.getChildren().addAll(apiLabel, buttonBox);
         buttonBox.getChildren().addAll(back, next);
+
         back.setMaxWidth(Double.MAX_VALUE);
         next.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(back, Priority.ALWAYS);
@@ -139,7 +147,12 @@ public class ApiApp extends Application {
         stack.setMargin(root, new Insets(50, 20, 60, 20));
     } // initStyle
 
-    /** {@inheritDoc} */
+    /**
+     * Initializes the primary stage and sets up the main scene. It adds the stack
+     * variable to the scene variable and ensures the stage is not resizable.
+     *
+     * {@inheritDoc}
+     */
     @Override
     public void start(Stage stage) {
         this.stage = stage;
@@ -237,6 +250,11 @@ public class ApiApp extends Application {
                                 currentIndex = 0;
                                 updateNews();
                             } // if
+                        } else {
+                            root.getChildren().clear();
+                            root.getChildren().add(label);
+                            next.setDisable(true);
+                            label.setText("No articles were found! Try again with another dish.");
                         } // if
                     } // if
                 } else {
@@ -251,8 +269,6 @@ public class ApiApp extends Application {
 
     /**
      * Upates the UI to display information about a recipe based on the provided response.
-     *
-     * @param response The response containing recipe information.
      */
     public void updateRecipe() {
         root.getChildren().clear();
@@ -261,52 +277,49 @@ public class ApiApp extends Application {
             RecipeAPI.RecipeResponse response = recipeResponse.get();
             hits = response.getHits();
 
-        if (hits != null && !hits.isEmpty()) {
-            RecipeAPI.RecipeResponse.Hit hit = hits.get(currentIndex);
-            RecipeAPI.RecipeResponse.Hit.Recipe recipe = hit.getRecipe();
+            if (hits != null && !hits.isEmpty()) {
+                RecipeAPI.RecipeResponse.Hit hit = hits.get(currentIndex);
+                RecipeAPI.RecipeResponse.Hit.Recipe recipe = hit.getRecipe();
 
-            if (recipe != null) {
-                String title = recipe.getLabel();
-                String url = recipe.getUrl();
-                double yield = recipe.getYield();
-                double calories = recipe.getCalories();
-                List<RecipeAPI.RecipeResponse.Hit.Recipe.Ingredient> ingredientsList =
-                    recipe.getIngredients();
+                if (recipe != null) {
+                    String title = recipe.getLabel();
+                    String url = recipe.getUrl();
+                    double yield = recipe.getYield();
+                    double calories = recipe.getCalories();
+                    List<RecipeAPI.RecipeResponse.Hit.Recipe.Ingredient> ingredientsList =
+                        recipe.getIngredients();
 
-                VBox newInfo = createRecipeInfoBox(
-                    title,
-                    url,
-                    yield,
-                    calories,
-                    ingredientsList);
-                StackPane infoStack = new StackPane();
-                infoStack.getChildren().add(newInfo);
-                root.getChildren().add(infoStack);
+                    VBox newInfo = createRecipeInfoBox(
+                        title,
+                        url,
+                        yield,
+                        calories,
+                        ingredientsList);
+                    StackPane infoStack = new StackPane();
+                    infoStack.getChildren().add(newInfo);
+                    root.getChildren().add(infoStack);
+                } // if
             } // if
-        } // if
         } // if
     } // updateRecipe
 
     /**
      * Updates the UI to display information about a news article based on the provided response.
-     *
-     * @param news The news response containing article information.
      */
     public void updateNews() {
         if (newsResponse.isPresent()) {
             NewsSourceAPI.NewsResponse news = newsResponse.get();
             List<NewsSourceAPI.NewsResponse.Article> articles = news.getArticles();
+
             if (articles != null && !articles.isEmpty()) {
-                NewsSourceAPI.NewsResponse.Article newsItem = articles.get(
-                    currentIndex);
+                NewsSourceAPI.NewsResponse.Article newsItem = articles.get(currentIndex);
+
                 String title = newsItem.getTitle();
-                String description = newsItem.getDescription();
                 String url = newsItem.getUrl();
                 String content = newsItem.getContent();
 
                 VBox newInfo = createNewsInfoBox(
                     title,
-                    description,
                     url,
                     content);
                 StackPane infoStack = new StackPane();
@@ -317,7 +330,8 @@ public class ApiApp extends Application {
     } // updateNews
 
     /**
-     * Updates the UI components, including recipe and news information, based on the current state.
+     * Updates the UI components, including recipe and news information, based on the current
+     * recipe index.
      */
     public void updateButtons() {
         if (recipeResponse.isPresent()) {
@@ -337,6 +351,8 @@ public class ApiApp extends Application {
 
     /**
      * Creates a VBox containing information about a recipe and then styles the information.
+     * Turns the ingredients list into a single string variable with no repeated ingredients and
+     * ensures no more than 6 items are shown.
      *
      * @param title The title of the recipe.
      * @param url The url link of the recipe.
@@ -381,14 +397,11 @@ public class ApiApp extends Application {
             "\tCalories: " + String.valueOf(newCalories));
         Label items = new Label(ingredients);
 
-        header.setStyle(
-            "-fx-font-size: 20;" +
-            "-fx-font-weight: bold;" +
-            "-fx-underline: true;"
-        );
+        header.setStyle("-fx-font-size: 20;" + "-fx-font-weight: bold;");
         items.setStyle("-fx-font-size: 14;");
         link.setStyle("-fx-font-style: italic;");
         amount.setStyle("-fx-underline: true;");
+
         header.setWrapText(true);
         items.setWrapText(true);
         link.setWrapText(true);
@@ -405,32 +418,23 @@ public class ApiApp extends Application {
      * Creates a VBox containing information about a news article and then styles the information.
      *
      * @param title The title of the news article.
-     * @param description The short description of the news article.
      * @param url The url link of the article.
      * @param content The contents, truncated at 200 words, of the article.
      * @return A Vbox containing news article information.
      */
     public VBox createNewsInfoBox(String title,
-        String description,
         String url,
         String content) {
 
         Label header = new Label(title);
         Label text = new Label("For full article, visit the website:");
         Label link = new Label(url);
-        Label info = new Label();
-        if (content != null) {
-            info.setText("\n" + content);
-        } else {
-            info.setText("\n" + description);
-        } // if
+        Label info = new Label("\n" + content);
 
-        header.setStyle(
-            "-fx-font-size: 20;" +
-            "-fx-font-weight: bold;" +
-            "-fx-underline: true;"
-        );
+        header.setStyle("-fx-font-size: 20;" + "-fx-font-weight: bold;");
         link.setStyle("-fx-font-style: italic;");
+        info.setStyle("-fx-font-size: 14;");
+
         info.setWrapText(true);
         link.setWrapText(true);
         header.setWrapText(true);
