@@ -15,6 +15,8 @@ import java.util.List;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.application.Platform;
+import java.util.Properties;
+import java.io.FileInputStream;
 
 /**
  * Interacts with the Edamam Recipe API to search for recipes.
@@ -139,7 +141,9 @@ public class RecipeAPI {
     private static int recipeApiRequests = 0;
     private static boolean rateLimitReached = false;
 
-    private static final String API_KEY = "aeeb9dcf6d121b1c6cbcaf6e2b72f2b2";
+    private static String configPath = "resources/config.properties";
+
+    private static String API_KEY;
     private static final String SEARCH_ENDPOINT = "https://api.edamam.com/api/recipes/v2";
     private static int statusCode;
 
@@ -152,6 +156,14 @@ public class RecipeAPI {
      */
     public static Optional<RecipeAPI.RecipeResponse> searchRecipes(String dish) {
         try {
+            try (FileInputStream configFileStream = new FileInputStream(configPath)) {
+                Properties config = new Properties();
+                config.load(configFileStream);
+                API_KEY = config.getProperty("recipeapi.apikey");
+            } catch (IOException e) {
+                e.printStackTrace();
+            } // try
+
             if (!checkRecipeRateLimit()) {
                 String url = String.format("%s?type=public&q=%s&app_id=aebf2db0&app_key=%s",
                     SEARCH_ENDPOINT,

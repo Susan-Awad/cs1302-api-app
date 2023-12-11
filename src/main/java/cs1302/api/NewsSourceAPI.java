@@ -10,10 +10,12 @@ import com.google.gson.Gson;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Properties;
 import java.util.Optional;
 import java.util.List;
 import java.net.URLEncoder;
 import java.net.URI;
+import java.io.FileInputStream;
 import java.io.IOException;
 
 /**
@@ -84,7 +86,9 @@ public class NewsSourceAPI {
     private static int newsApiRequests = 0;
     private static boolean rateLimitReached = false;
 
-    private static final String API_KEY = "c4bb93a1eeb54396992c90433ffa9dab";
+    private static String configPath = "resources/config.properties";
+
+    private static String API_KEY;
     private static final String ENDPOINT = "https://newsapi.org/v2/everything";
 
     /**
@@ -97,6 +101,14 @@ public class NewsSourceAPI {
      */
     public static Optional<NewsSourceAPI.NewsResponse> searchNews(List<String> cuisines) {
         try {
+            try (FileInputStream configFileStream = new FileInputStream(configPath)) {
+                Properties config = new Properties();
+                config.load(configFileStream);
+                API_KEY = config.getProperty("newsapi.apikey");
+            } catch (IOException e) {
+                e.printStackTrace();
+            } // try
+
             if (!checkNewsRateLimit()) {
                 String cuisineString = cuisines.get(0) + " cuisine";
                 String url = String.format("%s?apiKey=%s&q=%s&language=en&sortBy=relevancy",
